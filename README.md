@@ -6,6 +6,16 @@
 
 [Phantom VEO-E 340L](https://www.phantomhighspeed.com/products/cameras/veo/veoe340l) with [DataSheet](./wDSVEOE.pdf)
 
+Sensor Size 25.6 X 16 mm at full resolution. 
+
+Pixel Pitch 10 micron
+
+2. Check MLA Info
+
+Micro Lens array: [MLA-S125-f30](https://www.rpcphotonics.com/product/mla-s125-f30/) with [DataSheet](./Fact-Sheet-MLA1.pdf)
+
+[f/#](./Fnumber.jpg): 30 
+
 
 # Check Blender folder CamGen Model.
 
