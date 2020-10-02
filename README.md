@@ -24,7 +24,7 @@ Micro lens principal plane spacing(H1s, H2s): **we don't know**, assume 200 μm
 
 3. Simulate with 60mm focual length camera
 
-
+![IMAGE](https://github.com/lipilian/MicroLens-3D-Reconstruction-with-Blender/blob/master/2D1.JPG)
 
 
 # Check Blender folder CamGen Model.
