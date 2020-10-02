@@ -8,13 +8,23 @@
 
 Sensor Size 25.6 X 16 mm at full resolution. 
 
-Pixel Pitch 10 micron
+Pixel Pitch 10 μm 
 
 2. Check MLA Info
 
 Micro Lens array: [MLA-S125-f30](https://www.rpcphotonics.com/product/mla-s125-f30/) with [DataSheet](./Fact-Sheet-MLA1.pdf)
 
-[f/#](./Fnumber.JPG): 30 
+![f/#](https://github.com/lipilian/MicroLens-3D-Reconstruction-with-Blender/blob/master/Fnumber.JPG): 30 
+
+Micro Lens Pitch: 125 μm 
+
+Focal Length: 125 * 30 = 3750 μm  = 3.75mm
+
+Micro lens principal plane spacing(H1s, H2s): **we don't know**, assume 200 μm 
+
+3. Simulate with 60mm focual length camera
+
+
 
 
 # Check Blender folder CamGen Model.
