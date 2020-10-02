@@ -14,7 +14,7 @@ Pixel Pitch 10 μm
 
 Micro Lens array: [MLA-S125-f30](https://www.rpcphotonics.com/product/mla-s125-f30/) with [DataSheet](./Fact-Sheet-MLA1.pdf)
 
-![f/#](https://github.com/lipilian/MicroLens-3D-Reconstruction-with-Blender/blob/master/Fnumber.JPG): 30 
+![f/#](https://github.com/lipilian/MicroLens-3D-Reconstruction-with-Blender/blob/master/Fnumber.JPG). f/# 30 
 
 Micro Lens Pitch: 125 μm 
 
