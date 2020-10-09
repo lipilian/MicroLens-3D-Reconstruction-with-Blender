@@ -33,3 +33,9 @@ Micro lens principal plane spacing(H1s, H2s): **we don't know**, assume 200 μm
 
 2. I use Windows. Chech [add-on folder](https://docs.blender.org/manual/en/latest/advanced/blender_directory_layout.html#platform-dependent-paths)
 
+# 3D refocuse
+
+## MatLab Tool Box LFIT GUI
+
+
+## CMake compile the data

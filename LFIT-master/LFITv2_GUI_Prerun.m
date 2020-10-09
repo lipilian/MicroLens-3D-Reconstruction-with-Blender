@@ -771,3 +771,12 @@ function tagHexa_KeyPressFcn(hObject, eventdata, handles)
 %	Character: character interpretation of the key(s) that was pressed
 %	Modifier: name(s) of the modifier key(s) (i.e., control, shift) pressed
 % handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in tagRect.
+function tagRect_Callback(hObject, eventdata, handles)
+% hObject    handle to tagRect (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of tagRect
