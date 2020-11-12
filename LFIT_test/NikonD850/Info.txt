@@ -1,0 +1,2 @@
+Type: 'rect'
+Pixel pitch: 35.9 / 8256 = 0.00434835mm
