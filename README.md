@@ -46,7 +46,9 @@ Micro lens principal plane spacing(H1s, H2s): **we don't know**, assume 200 μm
 
 ![result](https://github.com/lipilian/MicroLens-3D-Reconstruction-with-Blender/blob/master/Image/result.png)
 
-[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/YOUTUBE_VIDEO_ID_HERE/0.jpg)](https://www.youtube.com/watch?v=YOUTUBE_VIDEO_ID_HERE)
+[![IMAGE ALT TEXT HERE](https://github.com/lipilian/MicroLens-3D-Reconstruction-with-Blender/blob/master/Image/demo.png)](https://www.youtube.com/watch?v=IWkSDdmETIk&ab_channel=LiuHong)
+
+This video show z slice from -25 mm to 25 mm based on normal focal plane. As we can see, the refocuse partical appears as guassian like blob.
 
 
 ## CMake compile the data
