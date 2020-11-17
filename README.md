@@ -40,9 +40,18 @@ Micro lens principal plane spacing(H1s, H2s): **we don't know**, assume 200 μm
 1. Camera parameters and sample image:
 ![sample image about chessboard](https://github.com/lipilian/MicroLens-3D-Reconstruction-with-Blender/blob/master/Image/Check.jpg)
 
+![camera setting](https://github.com/lipilian/MicroLens-3D-Reconstruction-with-Blender/blob/master/Image/setting.png)
+
+2. Refocus result
+
+![result](https://github.com/lipilian/MicroLens-3D-Reconstruction-with-Blender/blob/master/Image/result.png)
+
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/YOUTUBE_VIDEO_ID_HERE/0.jpg)](https://www.youtube.com/watch?v=YOUTUBE_VIDEO_ID_HERE)
 
 
 ## CMake compile the data
 
+This is a Qt UI based processing system.    
+chech my another [repo](https://github.com/lipilian/PlenopticImageProcessing)
 
 ## MatPIV for 3D velocity calculation
