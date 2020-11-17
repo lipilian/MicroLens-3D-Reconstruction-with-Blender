@@ -37,6 +37,10 @@ Micro lens principal plane spacing(H1s, H2s): **we don't know**, assume 200 μm
 
 ## MatLab Tool Box LFIT GUI
 
+1. Camera parameters:
+
+
+
 
 ## CMake compile the data
 
