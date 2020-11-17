@@ -37,8 +37,8 @@ Micro lens principal plane spacing(H1s, H2s): **we don't know**, assume 200 μm
 
 ## MatLab Tool Box LFIT GUI
 
-1. Camera parameters:
-
+1. Camera parameters and sample image:
+![sample image about chessboard](https://github.com/lipilian/MicroLens-3D-Reconstruction-with-Blender/blob/master/Image/Check.jpg)
 
 
 
