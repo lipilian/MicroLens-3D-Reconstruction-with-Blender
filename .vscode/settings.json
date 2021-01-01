@@ -1,5 +1,4 @@
 {
     "python.linting.pylintEnabled": true,
-    "python.linting.enabled": false,
-    "python.pythonPath": "C:\\Users\\LiuHong\\Anaconda3\\envs\\blender\\python.exe"
+    "python.linting.enabled": false
 }
