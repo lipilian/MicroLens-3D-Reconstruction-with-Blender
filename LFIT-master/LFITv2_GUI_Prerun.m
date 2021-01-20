@@ -780,3 +780,19 @@ function tagRect_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of tagRect
+
+
+% --------------------------------------------------------------------
+function tagCameraSelection_ButtonDownFcn(hObject, eventdata, handles)
+% hObject    handle to tagCameraSelection (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in tagClearCalSaveNew.
+function tagClearCalSaveNew_Callback(hObject, eventdata, handles)
+% hObject    handle to tagClearCalSaveNew (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of tagClearCalSaveNew
