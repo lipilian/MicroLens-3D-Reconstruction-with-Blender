@@ -22,7 +22,9 @@ class lfpivSetting:
                 'xmax_mm' : 20,\
                 'ymin_mm' : -2,\
                 'ymax_mm' : 12,\
-                'scaleFactor (used for supersample x, y refocused resolution' : 1\        
+                'scaleFactor' : 1,\
+                'minIntensity': 255,\
+                'maxRayCount': 100      
             }
         self.Setting_dict = Setting_dict  
         
