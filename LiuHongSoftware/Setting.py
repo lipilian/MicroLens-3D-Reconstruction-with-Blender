@@ -13,6 +13,7 @@ class lfpivSetting:
                 'MLA_F_mm' : 3.75,\
                 'MLA_size_mm' : 0.125,\
                 'sensorH_resolution' : 2400,\
+                'magnification': 40,\
                 'num_Micro_X' : 130,\
                 'num_Micro_Y' : 80,\
                 'dmin_mm' : -20,\
