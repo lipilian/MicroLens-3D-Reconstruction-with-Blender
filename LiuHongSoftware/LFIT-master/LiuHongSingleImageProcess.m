@@ -154,7 +154,7 @@ function [X,Y,Z,RayCounts] = LiuHongSingleImageProcess(OpticInfo, NumF, calibrat
         end
 
         subImage = img(yPixel, xPixel);
-        [yID, xID] = find(subImage == 255);
+        [yID, xID] = find(subImage >= OpticInfo.minIntensity);
         xRay = xPixel(xID) * pixelPitch; 
         yRay = yPixel(yID) * pixelPitch;
         L = length(xRay); zRay = ones(L,1) * OpticInfo.MLA_F_mm;
@@ -173,7 +173,7 @@ function [X,Y,Z,RayCounts] = LiuHongSingleImageProcess(OpticInfo, NumF, calibrat
     end
     
     directions = normr(directions);
-    xy = calIntersect(OriginalPoints, directions, 30);
+    xy = calIntersect(OriginalPoints, directions, 0);
 
     if calibration
         figure()
