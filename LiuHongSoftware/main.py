@@ -8,6 +8,7 @@ import time
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
+import pandas as pd
 # %% prerun to get datainformation from user
 OpticInfo = prerun()
 # %%
@@ -64,7 +65,7 @@ del npX_unique, npY_unique, npZ_unique
 maxRayCount = OpticInfo['maxRayCount']
 
 #? optional for adjust only
-maxRayCount = 20
+maxRayCount = 120
 
 npX = npX[RayCounts >= maxRayCount]
 npY = npY[RayCounts >= maxRayCount]
@@ -107,6 +108,27 @@ end = time.time()
 print('--------Excuation time---------')
 print('{} second needed to execute kdTree find local maxima'.format(end - start))
 
+# %% Simulation Matching only 
+Points = np.load('../BlenderAlgorithmSimulationCase/z0.02Points.npy')
+Points = Points *1000
+Points[:, [0, 1 ,2]] = Points[:, [1, 2, 0]] #! switch to x,y,z format in mm
+# calculate the imaging location based on the objects' locations
+Points[:, 2] = Points[:, 2] - 12.7 #! switch to x,y,s format in mm 
+S_prime = 1/(1/100.73 - 1/-Points[:,2]); S_prime = S_prime.reshape((-1,1))
+Points = np.append(Points, S_prime, 1) #! switch to x,y,s,s_prime format
+Points[:,0] = np.multiply(Points[:,0], np.divide(Points[:,3], Points[:,2]))
+Points[:,1] = np.multiply(Points[:,1], np.divide(Points[:,3], Points[:,2]))
+#! switch to Ix,Iy,s,s_prime format in mm 
+Points[:,3] = Points[:,3] - 100.73 * 2; Points = Points[:,[0,1,3]] #! Ix, Iy, d
+
+%matplotlib
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+p = ax.scatter(Points[:,0], Points[:,1], Points[:,2], c = 'k', s = 20)
+
+refPoints = Points
+refPoints[:,0] = Points[:,0] + 35.9/2
+refPoints[:,1] = -Points[:,1] + 23.9/2
 
 # %% DBSCAN for simulation 
 %matplotlib
@@ -114,30 +136,71 @@ from sklearn.neighbors import KDTree
 from sklearn.cluster import DBSCAN
 searchRange = 5 * deltaX
 points = np.concatenate((npX.reshape((-1,1)), npY.reshape((-1,1)), npZ.reshape((-1,1))), axis = 1)
-clustering1 = DBSCAN(eps = searchRange, min_samples = 1).fit(points)
+clustering1 = DBSCAN(eps = searchRange, min_samples = 5).fit(points)
 clusterLabel1 = clustering1.labels_
 print(np.max(clusterLabel1))
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-CenterPredict = []
+
+
+#! pick largest number cluster
+Allone = np.ones(clusterLabel1.shape)
+NumRayForLabel = []
 for i in range(np.max(clusterLabel1) + 1):
+    NumRayForLabel.append(np.sum(Allone[clusterLabel1 == i]))
+NumRayForLabel = np.array(NumRayForLabel)
+ValidLabel = NumRayForLabel.argsort()[-5:]
+
+CenterPredict = []
+for i in ValidLabel:
     plot_points = points[clusterLabel1 == i]
+    
+    centerNew = np.mean(plot_points, axis = 0)
+    
     Rays = RayCounts[clusterLabel1 == i]
     CenterP = plot_points[Rays >= np.max(Rays)* 0.9]
     CenterP = np.mean(CenterP, axis = 0)
     CenterPredict.append(CenterP)
-    #cp = ax.scatter(plot_points[:,0]/1000, plot_points[:,1]/1000, plot_points[:,2]/1000,c=Rays, cmap = 'jet',vmin = maxRayCount, vmax = 200, s= 2)
-    #ax.scatter(plot_points[:,0]/1000, plot_points[:,1]/1000, plot_points[:,2]/1000)
+    #CenterPredict.append(centerNew)
+    cp = ax.scatter(plot_points[:,0]/1000, plot_points[:,1]/1000, plot_points[:,2]/1000,c=Rays, cmap = 'jet',vmin = maxRayCount, vmax = 200, s= 2)
+    #ax.scatter(plot_points[:,0]/1000, plot_points[:,1]/1000, plot_points[:,2]/1000, label = str(i))
 CenterPredict = np.array(CenterPredict)
 pp = ax.scatter(CenterPredict[:,0]/1000, CenterPredict[:,1]/1000, CenterPredict[:,2]/1000, c='r', s=20)
 rp = ax.scatter(refPoints[:,0], refPoints[:,1], refPoints[:,2], c='k', s=20)
 ax.set_xlabel('X(mm)')
 ax.set_ylabel('Y(mm)')
 ax.set_zlabel('Z(mm)')
-ax.set_xlim([OpticInfo['xmin_mm'], OpticInfo['xmax_mm']])
-ax.set_ylim([OpticInfo['ymin_mm'], OpticInfo['ymax_mm']])
-ax.set_zlim([OpticInfo['dmin_mm'], OpticInfo['dmax_mm']])
+ax.set_xlim([5, 30])
+ax.set_ylim([5, 20])
+ax.set_zlim([-20, 20])
+ax.legend()
 fig.colorbar(cp)
+
+
+#%% Save the data for future use
+import pickle
+saveDict = {}
+saveDict['RayCounts'] = RayCounts
+saveDict['points'] = points
+saveDict['Validlabel'] = ValidLabel
+saveDict['label'] = clusterLabel1
+saveDict['refPoints'] = refPoints[1:]
+saveDict['Center'] = CenterPredict
+with open('../BlenderAlgorithmSimulationCase/temp/z002.pkl','wb') as handle:
+    pickle.dump(saveDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
+
+# %%
+MaxPredictDistance = 6 #! maximum distance to filter out outliers
+for pointA in refPoints:
+    
+    distance_2 = np.sum((CenterPredict/1000 - pointA) ** 2, axis =1 )
+    pointB = CenterPredict[np.argmin(distance_2)]/1000
+    if np.min(distance_2) < MaxPredictDistance ** 2:
+        line3D = [pointA, pointB]; line3D = np.array(line3D)
+        ax.plot3D(line3D[:,0], line3D[:,1], line3D[:,2], c = 'b')
+        
+
 # %% Simulation Matching only 
 Points = np.load('../BlenderAlgorithmSimulationCase/Points.npy')
 Points = Points *1000
@@ -149,7 +212,7 @@ Points = np.append(Points, S_prime, 1) #! switch to x,y,s,s_prime format
 Points[:,0] = np.multiply(Points[:,0], np.divide(Points[:,3], Points[:,2]))
 Points[:,1] = np.multiply(Points[:,1], np.divide(Points[:,3], Points[:,2]))
 #! switch to Ix,Iy,s,s_prime format in mm 
-Points[:,3] = Points[:,3] - 100.73 * 2; Points = Points[:,[0,1,3]] #! Ix, Iy, d
+Points[:,3] = Points[:,3] - 100.73 * 2 - 1.84 ; Points = Points[:,[0,1,3]] #! Ix, Iy, d
 
 %matplotlib
 fig = plt.figure()
@@ -176,4 +239,27 @@ fig.colorbar(p)
 # %%
 eng.quit()  
 del eng
+# %% test
+%matplotlib
+testPoints = points[clusterLabel1 == 4]
+testRays = RayCounts[clusterLabel1 == 4]
+data = np.concatenate((testPoints, testRays.reshape((-1,1))), axis = 1)
+
+#zArray = testPoints[:,2]; zArray = 
+    
+
+
+actualPoint = refPoints[5]
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.scatter(testPoints[:,0]/1000, testPoints[:,1]/1000, testPoints[:,2]/1000,c=testRays, cmap = 'jet',vmin = maxRayCount, vmax = 200, s= 2)
+rp = ax.scatter(actualPoint[0], actualPoint[1],actualPoint[2], c='k', s=20)
+ax.set_xlabel('X(mm)')
+ax.set_ylabel('Y(mm)')
+ax.set_zlabel('Z(mm)')
+'''
+ax.set_xlim([5, 30])
+ax.set_ylim([5, 20])
+ax.set_zlim([-20, 20])
+'''
 # %%
