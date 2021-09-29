@@ -172,23 +172,23 @@ function [X,Y,Z,RayCounts] = LiuHongSingleImageProcess(OpticInfo, NumF, calibrat
         title('10 random lens from the raw image to ensure 4d radArray correction');
     end
     
-    plotD = -10;
+    plotD = 0;
     directions = normr(directions);
     xy = calIntersect(OriginalPoints, directions, plotD);
 
-    if calibration
-        figure()
-        xy = xy(xy(:,1) > 20,:);
-        xy = xy(xy(:,1) < 21.6,:);
-        scatter(xy(:,1),xy(:,2),'.');
-        
-        xyVar = var(xy,0,1); 
-        title(['ray intersection point on d =', num2str(plotD), 'mm', ' variance is ', num2str(xyVar(1) + xyVar(2))]);
-        
-        xlim([20,21.6]);
-        ylim([11.6,12.2]);
-        axis equal;
-    end
+%     if calibration
+%         figure()
+%         xy = xy(xy(:,1) > 20,:);
+%         xy = xy(xy(:,1) < 21.6,:);
+%         scatter(xy(:,1),xy(:,2),'.');
+%         
+%         xyVar = var(xy,0,1); 
+%         title(['ray intersection point on d =', num2str(plotD), 'mm', ' variance is ', num2str(xyVar(1) + xyVar(2))]);
+%         
+%         xlim([20,21.6]);
+%         ylim([11.6,12.2]);
+%         axis equal;
+%     end
 
     for i = 1:NumZ
         xy = calIntersect(OriginalPoints,directions,Zcenter(i));

@@ -65,7 +65,7 @@ del npX_unique, npY_unique, npZ_unique
 maxRayCount = OpticInfo['maxRayCount']
 
 #? optional for adjust only
-maxRayCount = 120
+maxRayCount = 140
 
 npX = npX[RayCounts >= maxRayCount]
 npY = npY[RayCounts >= maxRayCount]
@@ -227,10 +227,10 @@ refPoints[:,1] = -Points[:,1] + 23.9/2
 %matplotlib 
 fig = plt.figure() 
 ax = fig.add_subplot(111, projection='3d')
-p = ax.scatter(npX/1000, npY/1000, npZ/1000, c = RayCounts, cmap = 'jet', vmin = maxRayCount, vmax = 800, s= 2)
+p = ax.scatter(npX/1000, npY/1000, npZ/1000, c = RayCounts, cmap = 'jet', vmin = maxRayCount, vmax = 300, s= 2)
 #L = ax.scatter(maxPoints[:,0]/1000, maxPoints[:,1]/1000, maxPoints[:,2]/1000, c = 'k', s = 20)
-Lcenter = ax.scatter(pointsCenter[:,0]/1000, pointsCenter[:,1]/1000,pointsCenter[:,2]/1000,c = 'r', s = 20)
-rp = ax.scatter(refPoints[:,0], refPoints[:,1], refPoints[:,2], c='k', s=20)
+#Lcenter = ax.scatter(pointsCenter[:,0]/1000, pointsCenter[:,1]/1000,pointsCenter[:,2]/1000,c = 'r', s = 20)
+#rp = ax.scatter(refPoints[:,0], refPoints[:,1], refPoints[:,2], c='k', s=20)
 ax.set_xlabel('X(mm)')
 ax.set_ylabel('Y(mm)')
 ax.set_zlabel('Z(mm)')
@@ -262,4 +262,69 @@ ax.set_xlim([5, 30])
 ax.set_ylim([5, 20])
 ax.set_zlim([-20, 20])
 '''
+# %% visualize for paper Demonstration
+%matplotlib 
+fig = plt.figure(figsize=(14,10)) 
+ax = fig.add_subplot(111,projection='3d')
+# ! Try to normalize each cluster
+
+
+
+from sklearn.cluster import DBSCAN
+from sklearn.neighbors import KDTree
+points_plot = np.concatenate((npX.reshape((-1,1)), npY.reshape((-1,1)), npZ.reshape((-1,1))), axis = 1)
+clustering = DBSCAN(eps = 5 * deltaX, min_samples = 1).fit(points_plot)
+clusterLabel = clustering.labels_
+numCenters = np.max(clusterLabel) + 1
+
+pointsCenter = np.zeros((numCenters,3))
+pointsRays = np.zeros((numCenters,))
+
+for i in range(numCenters):
+    #RayCounts[clusterLabel == i] /= np.max(RayCounts[clusterLabel == i])
+    localmax = np.max(RayCounts[clusterLabel == i])
+    localRayCounts = RayCounts[clusterLabel == i]
+    localpoints = points_plot[clusterLabel == i]
+    center = localpoints[localRayCounts == np.max(localRayCounts)]
+    pointsCenter[i,:] = np.mean(localpoints, axis = 0)
+    pointsRays[i] = np.max(localRayCounts)
+    
+xypoints = pointsCenter[:,0:2]
+clustering = DBSCAN(eps = 2 * deltaX, min_samples = 1).fit(xypoints)    
+xyLabel = clustering.labels_
+
+newPoints_Center = []
+for i in range(np.max(xyLabel) + 1):
+    newPoints_Center.append(np.average(pointsCenter[xyLabel == i], axis = 0, weights = pointsRays[xyLabel == i]))
+newPoints_Center = np.array(newPoints_Center)
+
+RayCountsNormalized = RayCounts
+for i in range(numCenters):
+    RayCountsNormalized[clusterLabel == i] /= np.max(RayCounts[clusterLabel == i])
+
+clustering = DBSCAN(eps = 15 * deltaX, min_samples = 1).fit(pointsCenter)
+newLabel = clustering.labels_
+numCenters = np.max(newLabel) + 1
+print(numCenters)
+
+
+p = ax.scatter(npX/1000, npY/1000, npZ/1000, c = RayCountsNormalized, cmap = 'jet', vmin = 0.4, vmax = 1, s= 5)
+
+#L = ax.scatter(maxPoints[:,0]/1000, maxPoints[:,1]/1000, maxPoints[:,2]/1000, c = 'r', s = 40)
+
+#p = ax.scatter(npX/1000, npY/1000, npZ/1000, c = clusterLabel, s= 5)
+
+#Lcenter = ax.scatter(newPoints_Center[:,0]/1000, newPoints_Center[:,1]/1000,newPoints_Center[:,2]/1000,c = 'k', s = 40, alpha = 1)
+
+
+    
+
+
+
+ax.set_yticklabels([])
+ax.set_xticklabels([])
+ax.set_zticklabels([])
+
+
+
 # %%
