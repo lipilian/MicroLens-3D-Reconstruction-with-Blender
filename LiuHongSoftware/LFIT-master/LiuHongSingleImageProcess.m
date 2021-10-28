@@ -1,5 +1,5 @@
 
-function [X,Y,Z,RayCounts] = LiuHongSingleImageProcess(OpticInfo, NumF, calibration)
+function [X,Y,Z,RayCounts] = LiuHongSingleImageProcess(OpticInfo, NumF, calibration, batch)
     % ------------------------------------------------------
     % OpticInfo include all optic information and output resolution
     % information 
@@ -53,10 +53,10 @@ function [X,Y,Z,RayCounts] = LiuHongSingleImageProcess(OpticInfo, NumF, calibrat
     end
     
     imageSetName = 'Test';
+    % find all images name and their path
     
-    numImages           = 1;
-    imageIndex          = 1;
-    refocusedImageStack = 0;
+    
+    
     fprintf('LFI_Toolkit Demonstration Program\n');
     fprintf('-------------------------------------------------\n');
 
@@ -75,40 +75,8 @@ function [X,Y,Z,RayCounts] = LiuHongSingleImageProcess(OpticInfo, NumF, calibrat
                     sensorType, ...
                     numMicroX, ...
                     numMicroY, ...
-                    microPitch, ...
+                    microPitch, ... 
                     pixelPitch);
-             
-    if calibration % only if calibration is not performed yet
-        [firstImage,newPath] = uigetfile({'*.tiff; *.tif','TIFF files (*.tiff, *.tif)'},'Select a single raw plenoptic image to begin processing...',targetPath);
-        newPath = newPath(1:end-1); % removes trailing slash from path
-    else
-        fileList = dir(targetPath);
-        fileNames = extractfield(fileList,'name');
-        fileName = fileNames{NumF + 3};
-        newPath = targetPath;
-    end
-    
-    if calibration
-        img = imread(fullfile(newPath, firstImage));
-        figure()
-        imshow(img);
-        hold on;
-        exactX_Scatter = cal.exactX(:);
-        exactY_Scatter = cal.exactY(:);
-        scatter(exactX_Scatter, exactY_Scatter, 'r.');
-        hold off;
-        title('exact Lens Center');
-        figure()
-        imshow(img);
-        hold on;
-        roundX_Scatter = cal.roundX(:);
-        roundY_Scatter = cal.roundY(:);
-        scatter(roundX_Scatter, roundY_Scatter, 'b.');
-        hold off;
-        title('round Lens Center');
-    else
-        img = imread(fullfile(newPath, fileName));
-    end
     
     microRadius = floor((microPitch/pixelPitch)/2); % (-14 to 14)
     microPad = 1;
@@ -124,94 +92,92 @@ function [X,Y,Z,RayCounts] = LiuHongSingleImageProcess(OpticInfo, NumF, calibrat
 
     % define mask, since this is 'rect' type lens, we use full aperture
     mask = ones( 1 + 2*(microRadius + microPad)); % (31 by 31)
-
-    fprintf('\n Reshaping image into microimage stack...');
+                
+                
+                
+    if calibration && ~batch % only if calibration is not performed yet
+        [firstImage,newPath] = uigetfile({'*.tiff; *.tif','TIFF files (*.tiff, *.tif)'},'Select a single raw plenoptic image to begin processing...',targetPath);
+        newPath = newPath(1:end-1); % removes trailing slash from 
+        img = imread(fullfile(newPath, firstImage));
+        % TODO: implement the single image draw grid function
+        % inside of drawGrid function
+    elseif calibration && batch
+        fileNames = getImagePathList(targetPath);
+        newPath = targetPath;
+        drawGrid(cal, newPath, fileNames, batch);
+    elseif batch
+        fileNames = getImagePathList(targetPath);
+        newPath = targetPath;
+    end
     
+    fprintf('\n Reshaping image into microimage stack... \n');
     numelST = cal.numS * cal.numT;
     
-    if calibration
-        showCase = randperm(numelST, 10);
-        figure();
-        imshow(img);   
-    end
-    
-    OriginalPoints = [];
-    directions = [];
-    
-    for k = 1:numelST 
-        [s,t] = ind2sub([cal.numS cal.numT], k);
-        xPixel = round(cal.exactX(s,t)) - uVectPad;
-        yPixel  = round(cal.exactY(s,t)) - vVectPad;
+    %OriginalPointsCell = {};
+    %directionsCell = {};
 
-        
-        if  calibration && ismember(k, showCase)
-            hold on;
-            plot(cal.exactX(s,t), cal.exactY(s,t), 'r*');
-            minX = min(xPixel); maxX = max(xPixel);
-            minY = min(yPixel); maxY = max(yPixel);
-            hold on;
-            rectangle('Position',[minX, minY, maxX - minX, maxY - minY],'EdgeColor','b');
+    if batch
+        RayCounts = zeros(NumX-1, NumY-1, NumZ-1, length(fileNames));
+        for i = 1:length(fileNames)
+            img = imread(fullfile(newPath, fileNames{i}));
+            [m,n] = size(img);
+            OriginalPoints = [];
+            directions = [];
+            for k = 1:numelST
+                [s,t] = ind2sub( [cal.numS cal.numT], k );
+                xPixel = round(cal.exactX(s,t)) - uVectPad; 
+                yPixel = round(cal.exactY(s,t)) - vVectPad;
+                minX = min(xPixel); maxX = max(xPixel);
+                minY = min(yPixel); maxY = max(yPixel);
+                if minY < 1 || maxY > m
+                    continue;
+                end
+                if minX < 1 || maxX > n
+                    continue;
+                end
+                subImage = img(yPixel, xPixel);
+                [yID, xID] = find(subImage >= OpticInfo.minIntensity);
+                xRay = xPixel(xID) * pixelPitch;
+                yRay = yPixel(yID) * pixelPitch;
+                L = length(xRay); zRay = ones(L,1) * OpticInfo.MLA_F_mm;
+                xLen = cal.exactX(s,t) * pixelPitch;
+                yLen = cal.exactY(s,t) * pixelPitch;
+                xyLen = repmat([xLen, yLen], L, 1);
+                OriginalPoints = [OriginalPoints; xyLen];
+                tempDirection = [[xRay', yRay'] - xyLen, zRay];
+                directions = [directions; tempDirection];
+            end
+            %OriginalPointsCell{i} = OriginalPoints; %Save the unit vector information frame by frame
+            directions = normr(directions);
+            %directionsCell{i} = directions; % same as above
+            for j = 1:NumZ
+                xy = calIntersect(OriginalPoints,directions,Zcenter(j));
+                N = histcounts2(xy(:,1),xy(:,2),Xedge,Yedge);
+                RayCounts(:,:,j,i) = N;
+            end
+            
         end
-
-        subImage = img(yPixel, xPixel);
-        [yID, xID] = find(subImage >= OpticInfo.minIntensity);
-        xRay = xPixel(xID) * pixelPitch; 
-        yRay = yPixel(yID) * pixelPitch;
-        L = length(xRay); zRay = ones(L,1) * OpticInfo.MLA_F_mm;
-        
-        xLen = cal.exactX(s,t) * pixelPitch;
-        yLen = cal.exactY(s,t) * pixelPitch;
-        xyLen = repmat([xLen, yLen],L,1);
-        OriginalPoints = [OriginalPoints; xyLen];
-        tempDirection = [[xRay', yRay'] - xyLen, zRay];
-        directions = [directions; tempDirection];
+         
+    else
+        %TODO: implement the single image 3D reconstrcution
     end
-
-    if calibration
-        hold off;
-        title('10 random lens from the raw image to ensure 4d radArray correction');
-    end
-    
-    plotD = 0;
-    directions = normr(directions);
-    xy = calIntersect(OriginalPoints, directions, plotD);
-
-%     if calibration
-%         figure()
-%         xy = xy(xy(:,1) > 20,:);
-%         xy = xy(xy(:,1) < 21.6,:);
-%         scatter(xy(:,1),xy(:,2),'.');
-%         
-%         xyVar = var(xy,0,1); 
-%         title(['ray intersection point on d =', num2str(plotD), 'mm', ' variance is ', num2str(xyVar(1) + xyVar(2))]);
-%         
-%         xlim([20,21.6]);
-%         ylim([11.6,12.2]);
-%         axis equal;
-%     end
-
-    for i = 1:NumZ
-        xy = calIntersect(OriginalPoints,directions,Zcenter(i));
-        N = histcounts2(xy(:,1),xy(:,2),Xedge,Yedge);
-        RayCounts(:,:,i) = N;
-    end
-    
     [X,Y,Z] = ndgrid(Xcenter,Ycenter,Zcenter);
-    if calibration
-        xx = X(RayCounts > maxRayCount); yy = Y(RayCounts > maxRayCount); zz = Z(RayCounts > maxRayCount);        
-        color = RayCounts(RayCounts> maxRayCount); 
-        figure()
-        xyz = [xx,yy,zz];
-        pcshow(xyz, color);
-        caxis([maxRayCount, 200]);
-    end
+
+%     for i = 1:NumZ
+%         xy = calIntersect(OriginalPoints,directions,Zcenter(i));
+%         N = histcounts2(xy(:,1),xy(:,2),Xedge,Yedge);
+%         RayCounts(:,:,i) = N;
+%     end
+    
+%     [X,Y,Z] = ndgrid(Xcenter,Ycenter,Zcenter);
+%     if calibration
+%         xx = X(RayCounts > maxRayCount); yy = Y(RayCounts > maxRayCount); zz = Z(RayCounts > maxRayCount);        
+%         color = RayCounts(RayCounts> maxRayCount); 
+%         figure()
+%         xyz = [xx,yy,zz];
+%         pcshow(xyz, color);
+%         caxis([maxRayCount, 200]);
+%     end
      
 end
     
-function xy0 = calIntersect(xy0, directions, d)
-    [M, ~] = size(xy0);
-    d = repmat(d, M, 1);
-    factor = d./directions(:,3); 
-    xy0(:,1) = xy0(:,1) + factor.*directions(:,1);
-    xy0(:,2) = xy0(:,2) + factor.*directions(:,2);
-end   

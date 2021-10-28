@@ -11,6 +11,8 @@ from matplotlib import cm
 import pandas as pd
 # %% prerun to get datainformation from user
 OpticInfo = prerun()
+NumF = 35 # give the number of frames for processing
+fps = 7 # camera sampling frequency
 # %%
 try:
     eng
@@ -33,10 +35,11 @@ except:
 # ! index start from 0 as tradinational python indexing format (first image)
 # ! calibration True or False
 start = time.time()
-X,Y,Z,RayCounts = eng.LiuHongSingleImageProcess(OpticInfo, 0, False,  nargout = 4)
-npX = (np.array(X._data, dtype = float) / OpticInfo['magnification']) * 1000
-npY = (np.array(Y._data, dtype = float) / OpticInfo['magnification']) * 1000
-npZ = (np.array(Z._data, dtype = float) / OpticInfo['magnification'] ** 2) * 1000
+# ! LiuHongSingleImageProcess arguement: OpticInfo, frame number, calibration, batch
+X,Y,Z,RayCounts = eng.LiuHongSingleImageProcess(OpticInfo, NumF, False, True, nargout = 4)
+npX = np.array(X._data, dtype = float) 
+npY = np.array(Y._data, dtype = float) 
+npZ = np.array(Z._data, dtype = float) 
 RayCounts = np.array(RayCounts._data, dtype = float)
 end = time.time()
 # print the calibration error from matlab to python terminal
@@ -48,66 +51,321 @@ print('-------------error-------------')
 print(err.getvalue())
 
 # %% histogram the RayCounts 
-#plt.figure()
-#plt.hist(RayCounts, 100, (0,600))
-#plt.yscale('log')
+plt.figure()
+plt.hist(RayCounts[0:len(npX)], 100, (0,600))
+plt.yscale('log')
 
 # %% filter the cloud points
 npX_unique = np.unique(npX); deltaX = npX_unique[1] - npX_unique[0]
 npY_unique = np.unique(npY); deltaY = npY_unique[1] - npY_unique[0]
 npZ_unique = np.unique(npZ); deltaZ = npZ_unique[1] - npZ_unique[0]
-
-
-
-
-
 del npX_unique, npY_unique, npZ_unique
 maxRayCount = OpticInfo['maxRayCount']
-
 #? optional for adjust only
-maxRayCount = 140
+maxRayCount = 100
 
-npX = npX[RayCounts >= maxRayCount]
-npY = npY[RayCounts >= maxRayCount]
-npZ = npZ[RayCounts >= maxRayCount]
-RayCounts = RayCounts[RayCounts >= maxRayCount]
-print('{} Points left'.format(len(npX)))
+npX_valid = []# npX_valid array for npX
+npY_valid = []# npY_valid array for npY
+npZ_valid = []# npZ_valid array for npZ
+RayCounts_Valid = [] #Valid RayCounts corresponding to npX,npY,npZ
+singleImgCounts = len(npX)
+for i in range(NumF):
+    RayCountByFrame = RayCounts[i * singleImgCounts: (i+1)*singleImgCounts]
+    npX_valid.append(npX[RayCountByFrame >= maxRayCount])
+    npY_valid.append(npY[RayCountByFrame >= maxRayCount])
+    npZ_valid.append(npZ[RayCountByFrame >= maxRayCount])
+    RayCounts_Valid.append(RayCountByFrame[RayCountByFrame >= maxRayCount])
+    print('{} Points left for Frame {}'.format(len(npX_valid[i]), i))
 
 print('x resolution is {} um'.format(deltaX))
 print('y resolution is {} um'.format(deltaY))
 print('z resolution is {} um'.format(deltaZ))
 
 
-# %% KDTree filter the points 
-from sklearn.neighbors import KDTree
+# %% visualize the cloud points
+for i in range(35):
+    FrameID = i
+    fig = plt.figure(1)
+    plt.clf()
+    ax = fig.add_subplot(111, projection='3d')
+    p = ax.scatter(npX_valid[FrameID], npY_valid[FrameID], npZ_valid[FrameID], c = RayCounts_Valid[FrameID], cmap = 'jet', vmin = maxRayCount, vmax = 300, s= 1)
+    fps = 7.0
+    ax.view_init(15.3284, -2.6613)
+    ax.set_title('FrameID = {}, t = {}s'.format(FrameID, FrameID/fps))
+    ax.set_xlim(-1, 4)
+    ax.set_ylim(-1,14)
+    ax.set_zlim(-40,40)
+    fig.savefig(OpticInfo['output_path'] + '/' + str(FrameID).zfill(5) + '.jpg', dpi = 300)
+
+
+# %% KDTREE + DBSCAN
+#from sklearn.neighbors import KDTree
 from sklearn.cluster import DBSCAN
-print('There are {} 3d points'.format(len(RayCounts)))
-searchRange = 5 * deltaX
-print('KDTree local maxima searching Range is {} um'.format(searchRange))
-points = np.concatenate((npX.reshape((-1,1)), npY.reshape((-1,1)), npZ.reshape((-1,1))), axis = 1)
+from sklearn.neighbors import BallTree
+searchRange = 4 * deltaX
+AllFrameMaxPoints = []
+AllFrameCenterPoints = []
 start = time.time()
-tree = KDTree(points)
-neighbors = tree.query_radius(points, r = searchRange)
-i_am_max = [RayCounts[i] == np.max(RayCounts[n]) for i,n in enumerate(neighbors)]
-maxIndex = np.nonzero(i_am_max)
-maxPoints = points[maxIndex]; maxPointsRay = RayCounts[maxIndex]
-clustering = DBSCAN(eps = searchRange, min_samples = 1).fit(maxPoints)
-clusterLabel = clustering.labels_
-numCenters = np.max(clusterLabel) + 1
-pointsCenter = np.zeros((numCenters, 3))
-pointsRayCount = np.zeros((numCenters, 1))
-for label in range(numCenters):
-    pointsIndex = np.where(clusterLabel == label)
-    validPoints = maxPoints[pointsIndex]
-    validRays = maxPointsRay[pointsIndex]
-    center = np.mean(validPoints, axis = 0)
-    centerRay = np.mean(validRays, axis = 0)
-    pointsCenter[label, :] = center
-    pointsRayCount[label] = centerRay
+for FrameID in range(NumF):
+    #for i in range(len(npX_valid)):
+    #print('There are {} 3d points'.format(len(npX_valid[testFrameID])))
+    #print('KDTree local maxima searching Range is {} mm'.format(searchRange))
+    points = np.concatenate((npX_valid[FrameID].reshape((-1,1)), npY_valid[FrameID].reshape((-1,1)), npZ_valid[FrameID].reshape((-1,1))), axis = 1)
+    weight = np.array([1,1,0.2])
+    weight = weight/np.linalg.norm(weight)
+    tree = BallTree(points, metric = 'wminkowski', p = 2, w = weight)# use Ball tree 
+    neighbors = tree.query_radius(points, r = searchRange) # search neighbor
+    i_am_max = [RayCounts_Valid[FrameID][k] == np.max(RayCounts_Valid[FrameID][n]) for k,n in enumerate(neighbors)]
+    maxIndex = np.nonzero(i_am_max)
+    maxPoints = points[maxIndex]
+    maxPointsRay = RayCounts_Valid[FrameID][maxIndex]
+    clustering = DBSCAN(eps = searchRange, min_samples = 1).fit(maxPoints)
+    clusterLabel = clustering.labels_
+    numCenters = np.max(clusterLabel) + 1
+    pointsCenter = np.zeros((numCenters, 3))
+    pointsRayCount = np.zeros((numCenters, 1))
+    for label in range(numCenters):
+        pointsIndex = np.where(clusterLabel == label)
+        validPoints = maxPoints[pointsIndex]
+        validRays = maxPointsRay[pointsIndex]
+        center = np.mean(validPoints, axis = 0)
+        centerRay = np.mean(validRays, axis = 0)
+        pointsCenter[label, :] = center
+        pointsRayCount[label] = centerRay
+    AllFrameMaxPoints.append(np.concatenate((maxPoints, np.expand_dims(maxPointsRay, axis = 1)), axis = 1))
+    AllFrameCenterPoints.append(np.concatenate((pointsCenter, pointsRayCount), axis = 1))
+                             
 end = time.time()
 print('--------Excuation time---------')
 print('{} second needed to execute kdTree find local maxima'.format(end - start))
 
+
+
+
+# %%
+for FrameID in range(NumF):
+    fig = plt.figure(1)
+    plt.clf()
+    ax = fig.add_subplot(111, projection='3d')
+    pt = ax.scatter(AllFrameMaxPoints[FrameID][:,0], AllFrameMaxPoints[FrameID][:,1], AllFrameMaxPoints[FrameID][:,2], c = AllFrameMaxPoints[FrameID][:,3], cmap = 'jet', vmin = maxRayCount, vmax = 300, s= 1)
+    ptCenter = ax.scatter(AllFrameCenterPoints[FrameID][:,0], AllFrameCenterPoints[FrameID][:,1], AllFrameCenterPoints[FrameID][:,2], c = 'k', s= 5)
+    ax.view_init(15.3284, -2.6613)
+    ax.set_title('FrameID = {}, t = {}s'.format(FrameID, FrameID/fps))
+    ax.set_xlim(-1, 4)
+    ax.set_ylim(-1,14)
+    ax.set_zlim(-40,40)
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    fig.savefig(OpticInfo['output_path'] + '/Center/' + str(FrameID).zfill(5) + '.jpg', dpi = 300)
+
+
+#%% trackpy tracking these particles 
+import trackpy as tp
+column_names = ['x', 'y', 'z', 'mass', 'frame']
+df = pd.DataFrame(columns = column_names)
+
+for FrameID in range(NumF):
+    ptCenter = AllFrameMaxPoints[FrameID]
+    ptCenter = np.append(ptCenter, np.ones([len(ptCenter), 1]) * FrameID, axis = 1)
+    ptCenter = pd.DataFrame(ptCenter, columns = column_names)
+    Alldf.append(ptCenter)
+    df = pd.concat([df, ptCenter])
+df.reset_index()
+df['xum'] = df['x']/20 * 1000
+df['yum'] = df['y']/20 * 1000
+df['zum'] = df['z']/400 * 1000
+pred = tp.predict.NearestVelocityPredict()
+t = pred.link_df(df, search_range = (0.4,6,0.4),pos_columns = ['x','y', 'z'],memory = 0)
+#t = tp.link(df,search_range = (0.4,6,0.4),pos_columns = ['x','y', 'z'], memory = 1, predictor = pred)
+
+# %%
+traj = 0
+NumParticle = t['particle'].max()
+velocityProfile = [] # x, y, z, vx, vy, yz
+for i in range(NumParticle):
+    tNew = t[t['particle'] == i]
+    if len(tNew) > 1:
+        for i in range(len(tNew) - 1):
+            p1 = tNew.iloc[i][['xum','yum','zum']].to_numpy()
+            p2 = tNew.iloc[i + 1][['xum','yum','zum']].to_numpy()
+            v_particle = p2 - p1
+            velocityProfile.append(np.concatenate((p1, v_particle)))
+velocityProfile = np.array(velocityProfile)
+velocityProfile = velocityProfile[velocityProfile[:,4] < 0]
+#velocityMag = np.linalg.norm(velocityProfile[:,4], axis = 1)
+velocityMag = np.abs(velocityProfile[:,4])
+
+points = velocityProfile[:,[0,2]] # only use x, z data 
+tree = BallTree(points, leaf_size = 2)
+neighbors = tree.query_radius(points, r = 10) # search neighbor
+factor = 0.9
+
+filteredVelocityMag = velocityMag
+for k, n in enumerate(neighbors):
+    filteredVelocityMag[k] = factor * np.median(velocityMag[n]) + (1-factor)*filteredVelocityMag[k]
+velocityMag = np.abs(velocityProfile[:,4])    
+ax = plt.figure().add_subplot(projection='3d')
+#ax.scatter(Map2D[:,0], Map2D[:,1], np.abs(Map2D[:,2]))
+# calculate the velocity um per second
+#points = points[velocityMag<125,:]
+#velocityMag = velocityMag[velocityMag < 125]
+#velocityMag[points[:,1] > 60] = 0
+#velocityMag[points[:,0] > 158] = 0
+
+points = points[filteredVelocityMag<125,:]
+filteredVelocityMag = filteredVelocityMag[filteredVelocityMag < 125]
+filteredVelocityMag[points[:,1] > 70] = 0
+filteredVelocityMag[points[:,0] > 158] = 0
+
+newPoints = points[points[:,1]>= 30,:]
+newfilteredVelocityMag = filteredVelocityMag[points[:,1]>=30]
+newPoints[:,1] = -60 - newPoints[:,1]
+
+points = np.concatenate((points,newPoints), axis = 0)
+filteredVelocityMag = np.concatenate((filteredVelocityMag,newfilteredVelocityMag), axis = 0)
+
+newPoints = points[points[:,0]>=120,:]
+newfilteredVelocityMag = filteredVelocityMag[points[:,0]>=120]
+newPoints[:,0] = 120 - newPoints[:,0]
+
+points = np.concatenate((points,newPoints), axis = 0)
+filteredVelocityMag = np.concatenate((filteredVelocityMag,newfilteredVelocityMag), axis = 0)
+
+
+tree = BallTree(points, leaf_size = 2)
+neighbors = tree.query_radius(points, r = 10) # search neighbor
+factor = 0.9
+
+newfilteredVelocityMag = filteredVelocityMag
+for k, n in enumerate(neighbors):
+    filteredVelocityMag[k] = factor * np.median(filteredVelocityMag[n]) + (1-factor)*newfilteredVelocityMag[k]
+
+
+
+
+ax.scatter(points[:,0], points[:,1], newfilteredVelocityMag)
+#ax.scatter(newPoints[:,0], newPoints[:,1], newfilteredVelocityMag, c = 'r')
+filteredVelocityMag = newfilteredVelocityMag
+
+
+ax.set_zlim([0,200])
+ax.set_ylabel('y(um)')
+ax.set_xlabel('x(um)')
+ax.set_zlabel('z(um/s)')
+savemat('../PaperDataResult/velocity_scatter.mat', {'x':points[:,0], 'y':points[:,1], 'v':filteredVelocityMag})
+
+# %%
+colorLow = 0
+colorHigh = 150
+c = velocityMag
+c = (c.ravel() - colorLow) / (colorHigh - colorLow)
+c = np.concatenate((c, np.repeat(c, 2)))
+c = plt.cm.jet(c)
+
+ax = plt.figure().add_subplot(projection='3d')
+
+ax.quiver(velocityProfile[:,0], velocityProfile[:,1], velocityProfile[:,2], 0* velocityProfile[:,3], -filteredVelocityMag, 0*velocityProfile[:,5],colors = c, normalize = True, length = 40)
+
+
+# %%
+from scipy.interpolate import griddata
+Map2D = velocityProfile[:,[0,2,4]]
+xi = np.arange(-40,165,5)
+yi = np.arange(-130,75,5)
+xi,yi = np.meshgrid(xi,yi)
+zi = griddata(points,filteredVelocityMag,(xi,yi), method = 'cubic')
+
+ax = plt.figure().add_subplot(projection='3d')
+#ax.scatter(Map2D[:,0], Map2D[:,1], np.abs(Map2D[:,2]))
+zi = zi * fps # calculate the velocity um per second
+ax.scatter(xi, yi, zi)
+
+ax.set_zlim([0,1000])
+ax.set_ylabel('y(um)')
+ax.set_xlabel('x(um)')
+ax.set_zlabel('z(um/s)')
+# %% refill entire domain  
+# ! get largest x with z value
+(m,n) = xi.shape
+max_x_index = 0
+for i in range(m):
+    for j in range(n):
+        if not np.isnan(zi[i,j]):
+            if j > max_x_index:
+                max_x_index = j
+print('max x index is {} in total {}'.format(max_x_index, n))   
+xmin = xi[0,max_x_index] - 200
+xmax = xi[0,max_x_index]
+ymax = 60
+ymin = -140
+current_valid_x = [0,200] # actual z valid until to 160
+current_valid_y = [-60,60]
+new_xi = np.arange(-40,165,5)
+new_yi = np.arange(-140,65,5)
+new_xi, new_yi = np.meshgrid(new_xi, new_yi)
+# ! cut zi until xi = 160
+new_zi = np.zeros([41,41])
+(m,n) = new_xi.shape
+for i in range(m):
+    for j in range(n):
+        x = new_xi[i,j]
+        y = new_yi[i,j]
+        col_index = np.where(xi[0,:] == x)
+        row_index = np.where(yi[:,0] == y)
+
+        if col_index[0].size > 0 and row_index[0].size > 0:
+            new_zi[i,j] = zi[row_index[0][0], col_index[0][0]]
+
+for i in range(int(20)):
+    new_zi[:,i] = new_zi[:,-i-1]          
+
+for j in range(int(20)):
+    new_zi[j,:] = new_zi[-j-1,:]
+    
+new_xi = new_xi - 60
+new_yi = new_yi + 40
+
+for i in range(m):
+    for j in range(n):
+        if np.abs(new_xi[i,j]) == 100 or np.abs(new_yi[i,j]) == 100:
+            new_zi[i,j] = 0      
+            
+ax = plt.figure().add_subplot(projection='3d')
+
+ax.scatter(new_xi, new_yi, new_zi)
+
+ax.set_zlim([0,1000])
+ax.set_ylabel('y(um)')
+ax.set_xlabel('x(um)')
+ax.set_zlabel('z(um/s)')
+
+from scipy.io import savemat
+savemat('../PaperDataResult/velocity.mat', {'x':new_xi, 'y':new_yi, 'v':new_zi})
+
+# %% Load back from matlab 
+from scipy.io import loadmat
+data = loadmat('../PaperDataResult/data.mat')
+
+y = np.arange(-100,105,5)
+z = np.arange(-100,105,5)
+yi,zi = np.meshgrid(y,z)
+vi = data['NewV']
+[m,n] = yi.shape
+xi = np.ones((m,n)); xi *= 200
+u = vi; v = np.zeros((m,n)); w = np.zeros((m,n))
+colorLow = 0
+colorHigh = np.max(vi)
+c = u.flatten()
+c = (c - colorLow) / c.ptp()
+#c = np.concatenate((c, np.repeat(c, 2)))
+#c = plt.cm.jet(c)
+%matplotlib
+ax = plt.figure().add_subplot(projection='3d')
+ax.quiver(xi.flatten(),yi.flatten(),zi.flatten(),u.flatten(),v.flatten(),w.flatten(), c , cmap = plt.cm.jet, length = 0.02)
+ax.set_ylabel('y(um)')
+ax.set_xlabel('x(um)')
+ax.set_zlabel('z(um)')
 # %% Simulation Matching only 
 Points = np.load('../BlenderAlgorithmSimulationCase/z0.02Points.npy')
 Points = Points *1000
