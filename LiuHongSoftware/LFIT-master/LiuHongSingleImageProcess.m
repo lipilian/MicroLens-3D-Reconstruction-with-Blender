@@ -148,7 +148,10 @@ function [X,Y,Z,RayCounts] = LiuHongSingleImageProcess(OpticInfo, NumF, calibrat
                 directions = [directions; tempDirection];
             end
             %OriginalPointsCell{i} = OriginalPoints; %Save the unit vector information frame by frame
+            
             directions = normr(directions);
+            SaveResult = [OriginalPoints, directions];
+            writematrix(SaveResult, [num2str(i),'.txt']);
             %directionsCell{i} = directions; % same as above
             for j = 1:NumZ
                 xy = calIntersect(OriginalPoints,directions,Zcenter(j));
