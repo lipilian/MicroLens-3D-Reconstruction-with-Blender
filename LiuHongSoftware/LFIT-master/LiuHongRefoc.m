@@ -7,8 +7,8 @@ outputPath = OpticInfo.output_path;
 sensorType = OpticInfo.sensor_type;
 
 %% mainlens information
-focLenMain = 200; % main focal lens in mm
-rulerHeight = 10.3; % rulerHeight in mm
+focLenMain = 100.7; % main focal lens in mm
+rulerHeight = 15.7; % rulerHeight in mm
 
 
 %% microlens array and sensor information
@@ -146,7 +146,7 @@ for k = 1:numelST
     end
     
     subImage = img(yPixel, xPixel);
-    [yID, xID] = find(subImage == 255);
+    [yID, xID] = find(subImage > 50);
     xRay = xPixel(xID) * pixelPitch; 
     yRay = yPixel(yID) * pixelPitch;
     L = length(xRay); zRay = ones(L,1) * OpticInfo.MLA_F_mm;
@@ -168,24 +168,24 @@ directions = normr(directions);
 % convert origion data from pixel units to mm units
 
 %%
-xy = calIntersect(OriginalPoints, directions, 70);
+xy = calIntersect(OriginalPoints, directions, 50);
 figure()
 scatter(xy(:,1),xy(:,2),'.')
 
 %% histogram count 
-scaleFactor = 1;
-minX = -2; maxX = 20; NumX = round((maxX - minX)/OpticInfo.MLA_size_mm * scaleFactor);
-minY = -2; maxY = 12; NumY = round((maxY - minY)/OpticInfo.MLA_size_mm * scaleFactor);
-minZ = -100; maxZ = 100; NumZ = 400;
+
+minX = OpticInfo.xmin_mm; maxX = OpticInfo.xmax_mm; NumX = round((maxX - minX)/OpticInfo.MLA_size_mm * scaleFactor);
+minY = OpticInfo.ymin_mm; maxY = OpticInfo.ymax_mm; NumY = round((maxY - minY)/OpticInfo.MLA_size_mm * scaleFactor);
+minZ = OpticInfo.dmin_mm; maxZ = OpticInfo.dmax_mm; NumZ = OpticInfo.dnum;
 Xedge = linspace(minX,maxX,NumX);
 Xcenter = movmean(Xedge,2); Xcenter = Xcenter(2:end);
 Yedge = linspace(minY,maxY,NumY);
 Ycenter = movmean(Yedge,2); Ycenter = Ycenter(2:end);
 Yedge = linspace(minY,maxY,NumY);
 RayCounts = zeros(NumX-1, NumY-1, NumZ-1);
-
-
 Zcenter = linspace(minZ,maxZ,NumZ);
+scaleFactor = 1;
+
 for i = 1:NumZ
     xy = calIntersect(OriginalPoints,directions,Zcenter(i));
     N = histcounts2(xy(:,1),xy(:,2),Xedge,Yedge);

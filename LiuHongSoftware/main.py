@@ -11,8 +11,8 @@ from matplotlib import cm
 import pandas as pd
 # %% prerun to get datainformation from user
 OpticInfo = prerun()
-NumF = 35 # give the number of frames for processing
-fps = 7 # camera sampling frequency
+NumF = 1 # give the number of frames for processing
+fps = 1 # camera sampling frequency
 # %%
 try:
     eng
@@ -52,7 +52,7 @@ print(err.getvalue())
 
 # %% histogram the RayCounts 
 plt.figure()
-plt.hist(RayCounts[0:len(npX)], 100, (0,600))
+plt.hist(RayCounts[0:len(npX)], 200, (30,200))
 plt.yscale('log')
 
 # %% filter the cloud points
@@ -62,7 +62,7 @@ npZ_unique = np.unique(npZ); deltaZ = npZ_unique[1] - npZ_unique[0]
 del npX_unique, npY_unique, npZ_unique
 maxRayCount = OpticInfo['maxRayCount']
 #? optional for adjust only
-maxRayCount = 100
+maxRayCount = 50
 
 npX_valid = []# npX_valid array for npX
 npY_valid = []# npY_valid array for npY
@@ -83,7 +83,8 @@ print('z resolution is {} um'.format(deltaZ))
 
 
 # %% visualize the cloud points
-for i in range(35):
+%matplotlib
+for i in range(NumF):
     FrameID = i
     fig = plt.figure(1)
     plt.clf()
@@ -92,8 +93,8 @@ for i in range(35):
     fps = 7.0
     ax.view_init(15.3284, -2.6613)
     ax.set_title('FrameID = {}, t = {}s'.format(FrameID, FrameID/fps))
-    ax.set_xlim(-1, 4)
-    ax.set_ylim(-1,14)
+    ax.set_xlim(-1, 25)
+    ax.set_ylim(-1,16)
     ax.set_zlim(-40,40)
     fig.savefig(OpticInfo['output_path'] + '/' + str(FrameID).zfill(5) + '.jpg', dpi = 300)
 
@@ -151,13 +152,33 @@ for FrameID in range(NumF):
     ptCenter = ax.scatter(AllFrameCenterPoints[FrameID][:,0], AllFrameCenterPoints[FrameID][:,1], AllFrameCenterPoints[FrameID][:,2], c = 'k', s= 5)
     ax.view_init(15.3284, -2.6613)
     ax.set_title('FrameID = {}, t = {}s'.format(FrameID, FrameID/fps))
-    ax.set_xlim(-1, 4)
-    ax.set_ylim(-1,14)
+    ax.set_xlim(-1, 25)
+    ax.set_ylim(-1,16)
     ax.set_zlim(-40,40)
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.set_zlabel('z')
-    fig.savefig(OpticInfo['output_path'] + '/Center/' + str(FrameID).zfill(5) + '.jpg', dpi = 300)
+    fig.savefig(OpticInfo['output_path'] + '/Center' + str(FrameID).zfill(5) + '.jpg', dpi = 300)
+
+# %% plot for the visualization tracking
+# TODO I am check macro accuracy (03/14/2022)
+fig = plt.figure(1)
+plt.clf()
+ax = fig.add_subplot(111, projection='3d')
+FrameID = 0
+p = ax.scatter(npX_valid[FrameID], npY_valid[FrameID], npZ_valid[FrameID], c = RayCounts_Valid[FrameID], cmap = 'jet', vmin = maxRayCount, vmax = 300, s= 1)
+ptCenter = ax.scatter(AllFrameCenterPoints[FrameID][:,0], AllFrameCenterPoints[FrameID][:,1], AllFrameCenterPoints[FrameID][:,2], c = 'k', s= 5)
+
+
+
+
+ax.view_init(15.3284, -2.6613)
+ax.set_xlim(-1, 25)
+ax.set_ylim(-1,16)
+ax.set_zlim(-40,40)
+ax.set_xlabel('x')
+ax.set_ylabel('y')
+ax.set_zlabel('z')
 
 
 #%% trackpy tracking these particles 
@@ -460,7 +481,7 @@ for pointA in refPoints:
         
 
 # %% Simulation Matching only 
-Points = np.load('../BlenderAlgorithmSimulationCase/Points.npy')
+Points = np.load('../BlenderAlgorithmSimulationCase/Ref.npy')
 Points = Points *1000
 Points[:, [0, 1 ,2]] = Points[:, [1, 2, 0]] #! switch to x,y,z format in mm
 # calculate the imaging location based on the objects' locations
@@ -478,8 +499,8 @@ ax = fig.add_subplot(111, projection='3d')
 p = ax.scatter(Points[:,0], Points[:,1], Points[:,2], c = 'k', s = 20)
 
 refPoints = Points
-refPoints[:,0] = Points[:,0] + 35.9/2
-refPoints[:,1] = -Points[:,1] + 23.9/2
+refPoints[:,0] = Points[:,0] + 25.4/2
+refPoints[:,1] = -Points[:,1] + 15.7/2
 # %% visualize 
 # interactive mode on
 %matplotlib 
